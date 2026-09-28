@@ -34,8 +34,8 @@ Python 3 + Flask + SQLite, one process.
 
 ## Plan and progress (update this as we go)
 
-* Sun Sep 27: Flask skeleton (`app.py`, `gymlog/__init__.py` with `create_app`, `config.py`), README stub, ADR-1 (Flask), AI_USAGE.md. Idea sent to prof for approval.
-* Mon Sep 28: `gymlog/db.py` (connection + schema init on startup), workouts schema, workouts `service.py` logic. ADR-3 (schema).
+* ✅ Sun Sep 27: Flask skeleton (`app.py`, `gymlog/__init__.py` with `create_app`, `config.py`), README stub, ADR-1 (Flask), AI_USAGE.md. Idea sent to prof for approval.
+* ✅ Mon Sep 28: `gymlog/db.py` (connection + schema init on startup), workouts schema, workouts `service.py` logic. ADR-3 (schema).
 * Tue Sep 29: workouts `repository.py` + `routes.py` blueprint, first pytest tests (`tests/conftest.py` using a temp `DATA_DIR`).
 * Wed Sep 30: records domain logic (PR detection, Epley 1RM, progress). ADR-2 (domain seam).
 * Thu Oct 1: records routes + tests, reach ≥70% coverage. ADR-4 (testing).
