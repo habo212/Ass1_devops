@@ -3,6 +3,7 @@ import os
 from flask import Flask
 
 from .config import load_config
+from .db import init_db
 
 
 def create_app(overrides=None):
@@ -13,6 +14,7 @@ def create_app(overrides=None):
         app.config.update(overrides)
 
     os.makedirs(app.config["DATA_DIR"], exist_ok=True)
+    init_db(app)
 
     @app.get("/health")
     def health():
