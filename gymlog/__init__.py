@@ -4,6 +4,7 @@ from flask import Flask
 
 from .config import load_config
 from .db import init_db
+from .workouts.routes import bp as workouts_bp
 
 
 def create_app(overrides=None):
@@ -15,6 +16,8 @@ def create_app(overrides=None):
 
     os.makedirs(app.config["DATA_DIR"], exist_ok=True)
     init_db(app)
+
+    app.register_blueprint(workouts_bp)
 
     @app.get("/health")
     def health():
