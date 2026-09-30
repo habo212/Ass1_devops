@@ -86,3 +86,19 @@ def delete_workout(workout_id):
     cur = db.execute("DELETE FROM workouts WHERE id = ?", (workout_id,))
     db.commit()
     return cur.rowcount > 0
+
+
+def get_sets_for_exercise(name):
+    """Every set ever done for one exercise, oldest first. Used by the records domain."""
+    rows = get_db().execute(
+        """
+        SELECT s.id AS set_id, w.performed_on, s.reps, s.weight_kg
+        FROM sets s
+        JOIN exercises e ON e.id = s.exercise_id
+        JOIN workouts w ON w.id = e.workout_id
+        WHERE e.name = ?
+        ORDER BY w.performed_on, s.id
+        """,
+        (name,),
+    ).fetchall()
+    return [dict(row) for row in rows]
