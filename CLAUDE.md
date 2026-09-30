@@ -9,6 +9,8 @@ How to work with me:
 * Keep code simple and readable: plain Flask + `sqlite3`, no clever tricks, and nothing I couldn't rewrite myself.
 * Work in small steps that each make one meaningful commit. Suggest a descriptive commit message ("Add X so that Y"), never "update"/"fix"/"WIP".
 * Claude may commit and push for me, but only real work done that day, after I've seen what's in it. Never backdate, batch-fake, or commit on a timer.
+* No `Co-Authored-By` or other Claude trailer in commit messages. AI use is disclosed in `AI_USAGE.md` instead.
+* Never rewrite or force-push already-pushed history: graders check push timestamps.
 * At the end of each session: (1) quiz me with 3 questions like the in-class check and correct my answers, (2) remind me to add my `AI_USAGE.md` row. I write the "In my own words" column myself. You can check it for accuracy.
 * If I ask for something that breaks the rules below, tell me.
 
@@ -36,8 +38,8 @@ Python 3 + Flask + SQLite, one process.
 
 * ✅ Sun Sep 27: Flask skeleton (`app.py`, `gymlog/__init__.py` with `create_app`, `config.py`), README stub, ADR-1 (Flask), AI_USAGE.md. Idea sent to prof for approval.
 * ✅ Mon Sep 28: `gymlog/db.py` (connection + schema init on startup), workouts schema, workouts `service.py` logic. ADR-3 (schema).
-* Tue Sep 29: workouts `repository.py` + `routes.py` blueprint, first pytest tests (`tests/conftest.py` using a temp `DATA_DIR`).
-* Wed Sep 30: records domain logic (PR detection, Epley 1RM, progress). ADR-2 (domain seam).
+* ✅ Tue Sep 29: workouts `repository.py` + `routes.py` blueprint, first pytest tests (`tests/conftest.py` using a temp `DATA_DIR`).
+* ✅ Wed Sep 30: records domain logic (PR detection, Epley 1RM, progress). ADR-2 (domain seam). Done early: records `goals` table + routes (was Thu).
 * Thu Oct 1: records routes + tests, reach ≥70% coverage. ADR-4 (testing).
 * Fri Oct 2: simple HTML frontend (Jinja templates), check the §7 contract from a fresh clone. ADR-5 (what I didn't build, e.g. auth/login).
 * Sat Oct 3: README final, architecture + DB diagrams, report draft, AI disclosure statement.

@@ -3,9 +3,10 @@ import sqlite3
 
 from flask import current_app, g
 
-# Each domain owns its own schema file. Records will add its file here later.
+# Each domain owns its own schema file.
 SCHEMA_FILES = [
     os.path.join(os.path.dirname(__file__), "workouts", "schema.sql"),
+    os.path.join(os.path.dirname(__file__), "records", "schema.sql"),
 ]
 
 
