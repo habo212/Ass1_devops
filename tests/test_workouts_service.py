@@ -5,6 +5,7 @@ import pytest
 from gymlog.workouts.service import (
     ValidationError,
     normalize_exercise_name,
+    parse_exercise_lines,
     parse_workout_date,
     validate_set,
     validate_workout,
@@ -109,3 +110,30 @@ def test_validate_workout_rejects_bad_structure(change):
 def test_validate_workout_rejects_non_dict():
     with pytest.raises(ValidationError):
         validate_workout(None, today=TODAY)
+
+
+# parse_exercise_lines
+
+def test_parse_lines_splits_exercises_and_sets():
+    text = "Bench Press: 8x60, 6X65\n\n  squat : 5 x 100 \n"
+    assert parse_exercise_lines(text) == [
+        {"name": "Bench Press", "sets": [{"reps": "8", "weight_kg": "60"}, {"reps": "6", "weight_kg": "65"}]},
+        {"name": "  squat ", "sets": [{"reps": "5", "weight_kg": "100"}]},
+    ]
+
+
+def test_parse_lines_then_validate_cleans_everything():
+    data = {"date": "2026-09-30", "exercises": parse_exercise_lines("squat : 5 x 100")}
+    assert validate_workout(data, today=TODAY)["exercises"] == [
+        {"name": "Squat", "sets": [{"reps": 5, "weight_kg": 100.0}]}
+    ]
+
+
+@pytest.mark.parametrize("bad", ["Bench Press 8x60", "Bench Press: 8-60", "Bench Press: 8x60,"])
+def test_parse_lines_rejects_bad_lines(bad):
+    with pytest.raises(ValidationError, match="line 1"):
+        parse_exercise_lines(bad)
+
+
+def test_parse_lines_empty_input():
+    assert parse_exercise_lines(None) == []

@@ -11,7 +11,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open http://localhost:8000/health. It should return `{"status": "ok"}`.
+Then open http://localhost:8000 to log workouts in the browser (http://localhost:8000/health returns `{"status": "ok"}`).
 
 ## Configuration (environment variables)
 
@@ -60,4 +60,4 @@ tests/                  # pytest, each test gets a temporary DATA_DIR
 pytest --cov=gymlog --cov-report=term-missing
 ```
 
-Result on 2026-10-01: **55 passed, 100% coverage** of `gymlog/` (274 statements, 0 missed).
+Result on 2026-10-01: **64 passed, 100% coverage** of `gymlog/` (322 statements, 0 missed).
