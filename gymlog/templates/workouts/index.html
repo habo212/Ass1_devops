@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Log a workout</h2>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post" action="{{ url_for('workout_pages.create') }}">
+  <label for="date">Date</label>
+  <input type="date" id="date" name="date" value="{{ form.get('date', '') }}" required>
+
+  <label for="exercises">Exercises</label>
+  <textarea id="exercises" name="exercises" rows="5"
+            placeholder="Bench Press: 8x60, 6x65&#10;Squat: 5x100">{{ form.get('exercises', '') }}</textarea>
+  <p class="hint">One exercise per line. Sets are reps x kg, separated by commas.</p>
+
+  <label for="notes">Notes</label>
+  <input type="text" id="notes" name="notes" value="{{ form.get('notes', '') }}">
+
+  <button type="submit">Save workout</button>
+</form>
+
+<h2>History</h2>
+{% if workouts %}
+<table>
+  <tr><th>Date</th><th>Notes</th></tr>
+  {% for w in workouts %}
+  <tr>
+    <td><a href="{{ url_for('workout_pages.detail', workout_id=w.id) }}">{{ w.performed_on }}</a></td>
+    <td>{{ w.notes }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No workouts yet.</p>
+{% endif %}
+{% endblock %}

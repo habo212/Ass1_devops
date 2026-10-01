@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Workout {{ workout.performed_on }}{% endblock %}
+{% block content %}
+<h2>Workout on {{ workout.performed_on }}</h2>
+{% if workout.notes %}<p>{{ workout.notes }}</p>{% endif %}
+
+{% for exercise in workout.exercises %}
+<h3>{{ exercise.name }}</h3>
+<table>
+  <tr><th>Set</th><th>Reps</th><th>Weight (kg)</th></tr>
+  {% for s in exercise.sets %}
+  <tr><td>{{ loop.index }}</td><td>{{ s.reps }}</td><td>{{ s.weight_kg }}</td></tr>
+  {% endfor %}
+</table>
+{% endfor %}
+
+<form method="post" action="{{ url_for('workout_pages.delete', workout_id=workout.id) }}"
+      onsubmit="return confirm('Delete this workout?')">
+  <button type="submit">Delete workout</button>
+</form>
+{% endblock %}

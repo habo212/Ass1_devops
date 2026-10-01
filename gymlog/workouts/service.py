@@ -106,3 +106,30 @@ def validate_workout(data, today=None):
         "notes": notes,
         "exercises": clean_exercises,
     }
+
+
+def parse_exercise_lines(text):
+    """Turn the web form's text box into the exercises list validate_workout expects.
+
+    One exercise per line, sets as REPSxWEIGHT separated by commas:
+        Bench Press: 8x60, 6x65
+        Squat: 5x100
+    Only splits the text up; validate_workout still checks the values.
+    """
+    if not isinstance(text, str):
+        text = ""
+    exercises = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue  # ignore blank lines
+        name, colon, sets_text = line.partition(":")
+        if not colon:
+            raise ValidationError(f"line {line_number}: write it like 'Bench Press: 8x60, 6x65'")
+        sets = []
+        for chunk in sets_text.split(","):
+            reps, x, weight_kg = chunk.strip().lower().partition("x")
+            if not x:
+                raise ValidationError(f"line {line_number}: each set looks like 8x60 (reps x kg)")
+            sets.append({"reps": reps.strip(), "weight_kg": weight_kg.strip()})
+        exercises.append({"name": name, "sets": sets})
+    return exercises

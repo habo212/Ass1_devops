@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Gym Log{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 16px; line-height: 1.5; }
+    header a { text-decoration: none; color: inherit; font-weight: 700; font-size: 1.3rem; }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    input, textarea { width: 100%; padding: 8px; font: inherit; box-sizing: border-box; }
+    button { margin-top: 12px; padding: 8px 16px; font: inherit; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; }
+    .error { background: #fde8e8; color: #9b1c1c; padding: 8px 12px; border-radius: 6px; }
+    .hint { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header><a href="{{ url_for('workout_pages.index') }}">🏋️ Gym Log</a></header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>
