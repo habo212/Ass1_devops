@@ -23,3 +23,11 @@ Context: A workout has several exercises and each exercise has several sets, and
 Decision: The workouts domain owns three tables, `workouts` 1→N `exercises` 1→N `sets`, joined by foreign keys with `ON DELETE CASCADE`. The records domain will own its own table and refer to exercises only by their name (plain text, no foreign key into the workouts tables).
 Alternatives considered: One flat `sets` table with the date and exercise name on every row: simpler, but it repeats the date and notes on every set and can't represent "one visit" cleanly. A separate `exercise_types` lookup table with a foreign key from records: stricter, but it would chain the records tables to workouts tables, so they couldn't be moved into a different database later.
 Consequences: Deleting a workout removes its exercises and sets automatically. Because records matches by name, the name must be normalised the same way everywhere ("bench press" = "Bench Press"), which the workouts service has to enforce.
+
+## 4. Testing approach: pure service functions first, then routes on a temporary database
+Date: 2026-10-01
+Status: Decided
+Context: The brief requires at least 70% coverage of the core business logic of both domains. Most of the real rules (input validation, name normalisation, PR detection, the Epley 1RM estimate) live in the two `service.py` files, while routes and repositories mostly pass data along.
+Decision: Test every rule in `workouts/service.py` and `records/service.py` directly with plain Python values (using `pytest.mark.parametrize` for the bad inputs and a fixed `today` date), then add a smaller set of route tests through Flask's test client. A `conftest.py` fixture gives each test a fresh SQLite file in pytest's `tmp_path`, so the real SQL runs without touching `data/`.
+Alternatives considered: Mocking the database in route tests: faster, but it would only prove the mocks work, not that my SQL and foreign keys do. Browser/end-to-end tests (e.g. Selenium): too heavy for the value they add here, and they would need extra packages.
+Consequences: Coverage is 100%, and the SQLite schema (CHECK constraints, cascades) is exercised for real. The route tests are thinner: they cover the happy path plus 400/404 cases, not every combination, and there are no tests for concurrent writes because the app is single-user.
