@@ -31,3 +31,11 @@ Context: The brief requires at least 70% coverage of the core business logic of 
 Decision: Test every rule in `workouts/service.py` and `records/service.py` directly with plain Python values (using `pytest.mark.parametrize` for the bad inputs and a fixed `today` date), then add a smaller set of route tests through Flask's test client. A `conftest.py` fixture gives each test a fresh SQLite file in pytest's `tmp_path`, so the real SQL runs without touching `data/`.
 Alternatives considered: Mocking the database in route tests: faster, but it would only prove the mocks work, not that my SQL and foreign keys do. Browser/end-to-end tests (e.g. Selenium): too heavy for the value they add here, and they would need extra packages.
 Consequences: Coverage is 100%, and the SQLite schema (CHECK constraints, cascades) is exercised for real. The route tests are thinner: they cover the happy path plus 400/404 cases, not every combination, and there are no tests for concurrent writes because the app is single-user.
+
+## 5. Not built: user accounts and login
+Date: 2026-10-02
+Status: Decided
+Context: Gym Log is a personal training log, and the brief lets me decide whether to add authentication. Login would touch every table and every route, and the deadline is one week, so I had to decide early whether it was worth it.
+Decision: No accounts or login. The app has one implicit user, and anyone who can reach the port can read and edit the log.
+Alternatives considered: Flask-Login with hashed passwords and a `users` table: the standard approach, but it adds a `user_id` foreign key to `workouts` and `goals`, session handling, CSRF protection on every form and its own tests, roughly doubling the work for a feature that doesn't help the two domains I'm graded on. HTTP basic auth from an environment variable: much less code, but it would still be shared by everyone, so it protects the app without actually separating users.
+Consequences: The app stays small and both domains could be finished and tested properly. Before the Azure deployment in Assignment 2, the app must not be left publicly reachable without at least network restrictions, and adding real users later means adding `user_id` to the `workouts` and `goals` tables.

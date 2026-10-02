@@ -13,6 +13,8 @@ python app.py
 
 Then open http://localhost:8000 to log workouts in the browser (http://localhost:8000/health returns `{"status": "ok"}`).
 
+Checked on 2026-10-02 from a fresh `git clone`: installs, starts on `0.0.0.0:$PORT` and creates `$DATA_DIR/gymlog.db` with no manual steps.
+
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
