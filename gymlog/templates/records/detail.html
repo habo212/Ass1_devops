@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set prs = summary.personal_records %}
+{% set top = summary.progress | map(attribute='best_1rm') | max %}
+{% block title %}{{ summary.exercise }} records{% endblock %}
+{% block content %}
+<h2>{{ summary.exercise }}</h2>
+
+<h3>Personal records</h3>
+<table>
+  <tr><th>Record</th><th>Value</th><th>Set</th><th>Date</th></tr>
+  <tr>
+    <td>Heaviest weight</td>
+    <td><strong>{{ prs.heaviest.weight_kg }} kg</strong></td>
+    <td>{{ prs.heaviest.reps }} × {{ prs.heaviest.weight_kg }} kg</td>
+    <td>{{ prs.heaviest.performed_on }}</td>
+  </tr>
+  <tr>
+    <td>Best estimated 1RM</td>
+    <td><strong>{{ prs.best_1rm.estimated_1rm }} kg</strong></td>
+    <td>{{ prs.best_1rm.reps }} × {{ prs.best_1rm.weight_kg }} kg</td>
+    <td>{{ prs.best_1rm.performed_on }}</td>
+  </tr>
+</table>
+<p class="hint">Estimated 1RM uses the Epley formula: weight × (1 + reps / 30).</p>
+
+<h3>Goal</h3>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if summary.goal %}
+<p>Target <strong>{{ summary.goal.target_kg }} kg</strong> (set {{ summary.goal.set_on }}):
+  {{ summary.goal.percent }}% there.</p>
+<div class="bar"><span style="width: {{ summary.goal.percent }}%"></span></div>
+<form method="post" action="{{ url_for('record_pages.delete_goal', name=summary.exercise) }}">
+  <button type="submit">Remove goal</button>
+</form>
+{% endif %}
+<form method="post" action="{{ url_for('record_pages.set_goal', name=summary.exercise) }}">
+  <label for="target_kg">{{ "Change" if summary.goal else "Set" }} target 1RM (kg)</label>
+  <input type="number" id="target_kg" name="target_kg" step="0.5" min="0.5" max="500" required>
+  <button type="submit">Save goal</button>
+</form>
+
+<h3>Progress</h3>
+<table>
+  <tr><th>Date</th><th>Best est. 1RM</th><th></th></tr>
+  {% for p in summary.progress %}
+  <tr>
+    <td>{{ p.date }}</td>
+    <td>{{ p.best_1rm }} kg</td>
+    <td style="width: 50%"><div class="bar"><span style="width: {{ (p.best_1rm / top * 100) | round }}%"></span></div></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

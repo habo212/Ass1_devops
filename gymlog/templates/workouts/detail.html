@@ -4,8 +4,10 @@
 <h2>Workout on {{ workout.performed_on }}</h2>
 {% if workout.notes %}<p>{{ workout.notes }}</p>{% endif %}
 
+<p class="hint">Click an exercise to see its records and progress.</p>
+
 {% for exercise in workout.exercises %}
-<h3>{{ exercise.name }}</h3>
+<h3><a href="{{ url_for('record_pages.detail', name=exercise.name) }}">{{ exercise.name }}</a></h3>
 <table>
   <tr><th>Set</th><th>Reps</th><th>Weight (kg)</th></tr>
   {% for s in exercise.sets %}

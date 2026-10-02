@@ -60,4 +60,4 @@ tests/                  # pytest, each test gets a temporary DATA_DIR
 pytest --cov=gymlog --cov-report=term-missing
 ```
 
-Result on 2026-10-01: **64 passed, 100% coverage** of `gymlog/` (322 statements, 0 missed).
+Result on 2026-10-02: **69 passed, 100% coverage** of `gymlog/` (359 statements, 0 missed).
