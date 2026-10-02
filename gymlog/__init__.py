@@ -4,6 +4,7 @@ from flask import Flask
 
 from .config import load_config
 from .db import init_db
+from .records.pages import bp as record_pages_bp
 from .records.routes import bp as records_bp
 from .workouts.pages import bp as workout_pages_bp
 from .workouts.routes import bp as workouts_bp
@@ -22,6 +23,7 @@ def create_app(overrides=None):
     app.register_blueprint(workouts_bp)
     app.register_blueprint(records_bp)
     app.register_blueprint(workout_pages_bp)
+    app.register_blueprint(record_pages_bp)
 
     @app.get("/health")
     def health():
