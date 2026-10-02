@@ -40,7 +40,7 @@ Python 3 + Flask + SQLite, one process.
 * ✅ Mon Sep 28: `gymlog/db.py` (connection + schema init on startup), workouts schema, workouts `service.py` logic. ADR-3 (schema).
 * ✅ Tue Sep 29: workouts `repository.py` + `routes.py` blueprint, first pytest tests (`tests/conftest.py` using a temp `DATA_DIR`).
 * ✅ Wed Sep 30: records domain logic (PR detection, Epley 1RM, progress). ADR-2 (domain seam). Done early: records `goals` table + routes (was Thu).
-* Thu Oct 1: records routes + tests, reach ≥70% coverage. ADR-4 (testing).
-* Fri Oct 2: simple HTML frontend (Jinja templates), check the §7 contract from a fresh clone. ADR-5 (what I didn't build, e.g. auth/login).
+* ✅ Thu Oct 1: records routes + tests, reach ≥70% coverage. ADR-4 (testing).
+* ✅ Fri Oct 2: simple HTML frontend (Jinja templates), check the §7 contract from a fresh clone. ADR-5 (what I didn't build, e.g. auth/login).
 * Sat Oct 3: README final, architecture + DB diagrams, report draft, AI disclosure statement.
 * Sun Oct 4: buffer, final review, submit.
