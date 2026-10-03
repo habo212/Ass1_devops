@@ -42,5 +42,5 @@ Python 3 + Flask + SQLite, one process.
 * ✅ Wed Sep 30: records domain logic (PR detection, Epley 1RM, progress). ADR-2 (domain seam). Done early: records `goals` table + routes (was Thu).
 * ✅ Thu Oct 1: records routes + tests, reach ≥70% coverage. ADR-4 (testing).
 * ✅ Fri Oct 2: simple HTML frontend (Jinja templates), check the §7 contract from a fresh clone. ADR-5 (what I didn't build, e.g. auth/login).
-* Sat Oct 3: README final, architecture + DB diagrams, report draft, AI disclosure statement.
+* ✅ Sat Oct 3 (diagrams in docs/diagrams.md; report still to write): README final, architecture + DB diagrams, report draft, AI disclosure statement.
 * Sun Oct 4: buffer, final review, submit.
