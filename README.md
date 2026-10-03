@@ -42,6 +42,8 @@ curl localhost:8000/api/records/Bench%20Press
 
 ## Project structure
 
+Architecture and database diagrams: [docs/diagrams.md](docs/diagrams.md). Design decisions: [ADR.md](ADR.md).
+
 ```
 app.py                  # entry point: python app.py
 gymlog/
@@ -50,10 +52,12 @@ gymlog/
   db.py                 # SQLite connection per request + schema init on startup
   workouts/             # Domain 1: sessions -> exercises -> sets
     __init__.py         #   public interface used by other domains (ADR-2)
-    service.py repository.py routes.py schema.sql
+    service.py repository.py routes.py pages.py schema.sql
   records/              # Domain 2: PRs, Epley 1RM progress, goals
-    service.py repository.py routes.py schema.sql
+    service.py repository.py routes.py pages.py summary.py schema.sql
+  templates/            # Jinja HTML for both domains' pages
 tests/                  # pytest, each test gets a temporary DATA_DIR
+docs/diagrams.md        # architecture + DB schema diagrams
 ```
 
 ## Tests
