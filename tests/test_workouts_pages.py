@@ -26,3 +26,18 @@ def test_bad_form_shows_error_and_keeps_input(client):
     assert page.status_code == 400
     assert b"line 1" in page.data
     assert b"bench press 8x60" in page.data  # what the user typed is still there
+
+
+def test_home_lists_exercises_linking_to_records(client):
+    client.post("/", data={"date": "2026-09-30", "exercises": "squat: 5x100\nbench press: 5x80"})
+    page = client.get("/").data
+    assert b"/records/Bench%20Press" in page
+    assert b"/records/Squat" in page
+
+
+def test_every_page_links_back_home(client):
+    location = client.post("/", data={"date": "2026-09-30", "exercises": "squat: 5x100"}).headers["Location"]
+    for url in [location, "/records/Squat"]:
+        page = client.get(url).data
+        assert b"Back to" in page
+        assert b'href="/#exercises"' in page  # nav bar

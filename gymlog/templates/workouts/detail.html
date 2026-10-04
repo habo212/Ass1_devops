@@ -20,4 +20,6 @@
       onsubmit="return confirm('Delete this workout?')">
   <button type="submit">Delete workout</button>
 </form>
+
+<a class="back" href="{{ url_for('workout_pages.index') }}">← Back to all workouts</a>
 {% endblock %}

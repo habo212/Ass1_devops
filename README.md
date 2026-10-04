@@ -66,4 +66,4 @@ docs/diagrams.md        # architecture + DB schema diagrams
 pytest --cov=gymlog --cov-report=term-missing
 ```
 
-Result on 2026-10-02: **69 passed, 100% coverage** of `gymlog/` (359 statements, 0 missed).
+Result on 2026-10-04: **71 passed, 100% coverage** of `gymlog/` (362 statements, 0 missed).

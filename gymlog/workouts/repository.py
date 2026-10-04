@@ -39,6 +39,12 @@ def list_workouts():
     return [dict(row) for row in rows]
 
 
+def list_exercise_names():
+    """Every exercise name that has been logged, A to Z."""
+    rows = get_db().execute("SELECT DISTINCT name FROM exercises ORDER BY name").fetchall()
+    return [row["name"] for row in rows]
+
+
 def get_workout(workout_id):
     """One workout with its exercises and sets nested inside, or None if missing."""
     db = get_db()

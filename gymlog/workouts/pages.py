@@ -13,6 +13,7 @@ def index():
     return render_template(
         "workouts/index.html",
         workouts=repository.list_workouts(),
+        exercises=repository.list_exercise_names(),
         form={"date": date.today().isoformat()},
         error=None,
     )
@@ -30,7 +31,11 @@ def create():
     except service.ValidationError as e:
         # Show the form again with what the user typed, plus the error.
         page = render_template(
-            "workouts/index.html", workouts=repository.list_workouts(), form=form, error=str(e)
+            "workouts/index.html",
+            workouts=repository.list_workouts(),
+            exercises=repository.list_exercise_names(),
+            form=form,
+            error=str(e),
         )
         return page, 400
     workout_id = repository.create_workout(workout)
