@@ -4,23 +4,28 @@ A workout logger: record gym sessions (exercises, sets, reps, weight) and automa
 
 ## Run it
 
+Assignment 2 is in progress: the app is now two services, `services/workouts` and `services/records`.
+Docker, SQL Server and the static UI are added in later steps. For now each service runs on its own:
+
 ```bash
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
+pip install -r services/workouts/requirements-dev.txt -r services/records/requirements-dev.txt
+
+# terminal 1
+cd services/workouts && PORT=8001 python app.py
+# terminal 2
+cd services/records && PORT=8002 WORKOUTS_URL=http://localhost:8001 python app.py
 ```
-
-Then open http://localhost:8000 to log workouts in the browser (http://localhost:8000/health returns `{"status": "ok"}`).
-
-Checked on 2026-10-02 from a fresh `git clone`: installs, starts on `0.0.0.0:$PORT` and creates `$DATA_DIR/gymlog.db` with no manual steps.
 
 ## Configuration (environment variables)
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `PORT` | `8000` | Port the server listens on (always binds `0.0.0.0`) |
-| `DATA_DIR` | `./data` | Folder for the SQLite file. The DB lives at `$DATA_DIR/gymlog.db` |
+| Service | Variable | Default | Purpose |
+|---|---|---|---|
+| both | `PORT` | `8000` | Port the service listens on (always binds `0.0.0.0`) |
+| both | `DATA_DIR` | `./data` | Folder for the service's own SQLite file |
+| records | `WORKOUTS_URL` | `http://workouts:8000` | Base URL of the workouts service |
+| records | `WORKOUTS_TIMEOUT_S` | `2` | Seconds to wait for workouts before answering 503 |
 
 ## API
 
@@ -29,41 +34,44 @@ Checked on 2026-10-02 from a fresh `git clone`: installs, starts on `0.0.0.0:$PO
 | `POST` | `/api/workouts` | Log a workout (JSON: `date`, `notes`, `exercises[{name, sets[{reps, weight_kg}]}]`) |
 | `GET` | `/api/workouts` | List workouts, newest first |
 | `GET` / `PUT` / `DELETE` | `/api/workouts/<id>` | Get, replace or delete one workout |
-| `GET` | `/api/records/<exercise>` | Personal records, estimated 1RM progress per day, and goal progress |
+| `GET` | `/api/workouts/exercises` | Every exercise name logged (workouts) |
+| `GET` | `/api/workouts/exercises/<exercise>/sets` | Every set for one exercise, oldest first. Records calls this (workouts) |
+| `GET` | `/api/records/<exercise>` | Personal records, estimated 1RM progress per day, and goal progress. `503` if workouts is unavailable (records) |
 | `PUT` / `DELETE` | `/api/records/<exercise>/goal` | Set (`{"target_kg": 100}`) or remove a target weight |
 
 Example:
 
 ```bash
-curl -X POST localhost:8000/api/workouts -H 'content-type: application/json' \
+curl -X POST localhost:8001/api/workouts -H 'content-type: application/json' \
   -d '{"date":"2026-10-01","exercises":[{"name":"Bench Press","sets":[{"reps":5,"weight_kg":80}]}]}'
-curl localhost:8000/api/records/Bench%20Press
+curl localhost:8002/api/records/Bench%20Press
 ```
 
 ## Project structure
 
-Architecture and database diagrams: [docs/diagrams.md](docs/diagrams.md). Design decisions: [ADR.md](ADR.md).
+Design decisions: [ADR.md](ADR.md). The diagrams in [docs/diagrams.md](docs/diagrams.md) still show the Assignment 1 monolith.
 
 ```
-app.py                  # entry point: python app.py
-gymlog/
-  __init__.py           # create_app(): config, init_db, registers blueprints
-  config.py             # reads PORT / DATA_DIR from the environment
-  db.py                 # SQLite connection per request + schema init on startup
-  workouts/             # Domain 1: sessions -> exercises -> sets
-    __init__.py         #   public interface used by other domains (ADR-2)
-    service.py repository.py routes.py pages.py schema.sql
-  records/              # Domain 2: PRs, Epley 1RM progress, goals
-    service.py repository.py routes.py pages.py summary.py schema.sql
-  templates/            # Jinja HTML for both domains' pages
-tests/                  # pytest, each test gets a temporary DATA_DIR
-docs/diagrams.md        # architecture + DB schema diagrams
+services/
+  workouts/               # Service 1: sessions -> exercises -> sets
+    app.py                #   entry point: python app.py
+    requirements.txt      #   its own pinned dependencies
+    workouts/             #   create_app, config, db, service, repository, routes, schema.sql
+    tests/
+  records/                # Service 2: PRs, Epley 1RM progress, goals
+    app.py
+    requirements.txt
+    records/              #   same layout, plus workouts_client.py (the HTTP call to workouts)
+    tests/                #   workouts is replaced by a fake, so no second process is needed
 ```
 
 ## Tests
 
+Each service is tested from its own folder:
+
 ```bash
-pytest --cov=gymlog --cov-report=term-missing
+cd services/workouts && pytest --cov=workouts --cov-report=term-missing
+cd services/records && pytest --cov=records --cov-report=term-missing
 ```
 
-Result on 2026-10-04: **71 passed, 100% coverage** of `gymlog/` (362 statements, 0 missed).
+Result on 2026-11-16: workouts **46 passed, 100%**; records **30 passed, 100%**.
