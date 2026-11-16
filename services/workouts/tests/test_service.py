@@ -137,3 +137,8 @@ def test_parse_lines_rejects_bad_lines(bad):
 
 def test_parse_lines_empty_input():
     assert parse_exercise_lines(None) == []
+
+
+def test_validate_workout_rejects_notes_longer_than_the_column():
+    with pytest.raises(ValidationError):
+        validate_workout({**valid_workout(), "notes": "x" * 1001}, today=TODAY)
