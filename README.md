@@ -4,19 +4,24 @@ A workout logger: record gym sessions (exercises, sets, reps, weight) and automa
 
 ## Run it
 
-Assignment 2 is in progress: the app is two services, `services/workouts` and `services/records`,
-each with its own SQL Server database. Docker images for the services and the static UI come next.
+The app is two services, `services/workouts` and `services/records`, each with its own SQL Server
+database. Needs Docker Desktop (on Apple Silicon, turn on Rosetta emulation in its settings).
 
-Start SQL Server and create both databases and logins (needs Docker Desktop; on Apple Silicon,
-Rosetta emulation must be on):
+```bash
+docker compose up --build
+```
+
+This starts SQL Server, runs `db/init.sql` once (databases and logins), then builds and starts both
+services: workouts on http://localhost:8001 and records on http://localhost:8002. Data is kept in the
+`sqlserver-data` volume between runs. The static UI comes in a later step.
+
+### Run a single service without Docker
+
+Start only the database, then run the service with Python:
 
 ```bash
 docker compose up -d sqlserver db-init
-```
 
-Then run each service on your machine:
-
-```bash
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r services/workouts/requirements-dev.txt -r services/records/requirements-dev.txt
@@ -84,6 +89,7 @@ services/
     app.py                #   entry point: python app.py
     requirements.txt      #   its own pinned dependencies
     migrations/           #   001_init.sql, ... applied in order on startup
+    Dockerfile            #   python:3.13.5-slim, non-root, gunicorn with 1 worker
     workouts/             #   create_app, config, db, migrate, service, repository, routes
     tests/
   records/                # Service 2: PRs, Epley 1RM progress, goals

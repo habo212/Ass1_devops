@@ -40,5 +40,31 @@ services:
     command: ["/bin/bash", "-c", "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -i /db/init.sql"]
     restart: "no"
 
+  # Service 1: workouts, on http://localhost:8001
+  workouts:
+    build: ./services/workouts
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 8000
+      DATABASE_URL: mssql://workouts_user:${WORKOUTS_DB_PASSWORD:-Workouts_LocalDev1!}@sqlserver:1433/workouts
+    ports:
+      - "8001:8000"
+
+  # Service 2: records, on http://localhost:8002. Finds workouts by its compose name.
+  records:
+    build: ./services/records
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 8000
+      DATABASE_URL: mssql://records_user:${RECORDS_DB_PASSWORD:-Records_LocalDev1!}@sqlserver:1433/records
+      WORKOUTS_URL: http://workouts:8000
+      WORKOUTS_TIMEOUT_S: 2
+    ports:
+      - "8002:8000"
+
 volumes:
   sqlserver-data:
