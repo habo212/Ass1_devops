@@ -1,0 +1,70 @@
+# Local stack. Start it with: docker compose up --build
+#
+# The passwords below are defaults for this laptop only: SQL Server is bound to
+# 127.0.0.1 and holds nothing real. Override them with environment variables or a
+# .env file (git-ignored). The Azure passwords are only in GitHub Actions secrets.
+
+services:
+  # One SQL Server holding one database per service.
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64  # no ARM image; Docker Desktop runs it with Rosetta
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-LocalDev_Only1!}
+    ports:
+      - "127.0.0.1:1433:1433"  # reachable from this laptop (tests), not the network
+    volumes:
+      - sqlserver-data:/var/opt/mssql  # data survives docker compose down
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q 'SELECT 1' > /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # One-off: creates the databases and logins, then exits.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-LocalDev_Only1!}
+      # sqlcmd turns these environment variables into $(...) variables in init.sql
+      WORKOUTS_DB_PASSWORD: ${WORKOUTS_DB_PASSWORD:-Workouts_LocalDev1!}
+      RECORDS_DB_PASSWORD: ${RECORDS_DB_PASSWORD:-Records_LocalDev1!}
+    volumes:
+      - ./db:/db:ro
+    command: ["/bin/bash", "-c", "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -i /db/init.sql"]
+    restart: "no"
+
+  # Service 1: workouts, on http://localhost:8001
+  workouts:
+    build: ./services/workouts
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 8000
+      DATABASE_URL: mssql://workouts_user:${WORKOUTS_DB_PASSWORD:-Workouts_LocalDev1!}@sqlserver:1433/workouts
+    ports:
+      - "8001:8000"
+
+  # Service 2: records, on http://localhost:8002. Finds workouts by its compose name.
+  records:
+    build: ./services/records
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 8000
+      DATABASE_URL: mssql://records_user:${RECORDS_DB_PASSWORD:-Records_LocalDev1!}@sqlserver:1433/records
+      WORKOUTS_URL: http://workouts:8000
+      WORKOUTS_TIMEOUT_S: 2
+    ports:
+      - "8002:8000"
+
+volumes:
+  sqlserver-data:

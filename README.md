@@ -4,28 +4,60 @@ A workout logger: record gym sessions (exercises, sets, reps, weight) and automa
 
 ## Run it
 
-Assignment 2 is in progress: the app is now two services, `services/workouts` and `services/records`.
-Docker, SQL Server and the static UI are added in later steps. For now each service runs on its own:
+The app is two services, `services/workouts` and `services/records`, each with its own SQL Server
+database. Needs Docker Desktop (on Apple Silicon, turn on Rosetta emulation in its settings).
 
 ```bash
+docker compose up --build
+```
+
+This starts SQL Server, runs `db/init.sql` once (databases and logins), then builds and starts both
+services: workouts on http://localhost:8001 and records on http://localhost:8002. Data is kept in the
+`sqlserver-data` volume between runs. The static UI comes in a later step.
+
+### Run a single service without Docker
+
+Start only the database, then run the service with Python:
+
+```bash
+docker compose up -d sqlserver db-init
+
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r services/workouts/requirements-dev.txt -r services/records/requirements-dev.txt
 
 # terminal 1
-cd services/workouts && PORT=8001 python app.py
+cd services/workouts
+PORT=8001 DATABASE_URL='mssql://workouts_user:Workouts_LocalDev1!@localhost:1433/workouts' python app.py
 # terminal 2
-cd services/records && PORT=8002 WORKOUTS_URL=http://localhost:8001 python app.py
+cd services/records
+PORT=8002 WORKOUTS_URL=http://localhost:8001 \
+  DATABASE_URL='mssql://records_user:Records_LocalDev1!@localhost:1433/records' python app.py
 ```
+
+The passwords above are local-only defaults from `docker-compose.yml` (SQL Server is bound to
+127.0.0.1). Override them with environment variables or a git-ignored `.env` file.
 
 ## Configuration (environment variables)
 
 | Service | Variable | Default | Purpose |
 |---|---|---|---|
 | both | `PORT` | `8000` | Port the service listens on (always binds `0.0.0.0`) |
-| both | `DATA_DIR` | `./data` | Folder for the service's own SQLite file |
+| both | `DATABASE_URL` | none (secret) | `mssql://user:password@host:1433/database` of the service's own database |
 | records | `WORKOUTS_URL` | `http://workouts:8000` | Base URL of the workouts service |
 | records | `WORKOUTS_TIMEOUT_S` | `2` | Seconds to wait for workouts before answering 503 |
+
+## Database and migrations
+
+- `db/init.sql` creates the `workouts` and `records` databases and one login per service, each
+  able to open only its own database. It is safe to run again.
+- Each service creates and changes its own tables with numbered files in `services/<name>/migrations/`
+  (`001_init.sql`, ...). On startup the service applies the files not yet listed in its
+  `schema_migrations` table, each in one transaction, so a second start applies nothing.
+- Applied migrations are never edited; a change is a new file. A line with only `GO` splits a
+  file into batches.
+- Connecting retries with backoff (1, 2, 4, 8, then 10 s, about 65 s in total) so a paused
+  Azure SQL database has time to resume.
 
 ## API
 
@@ -56,22 +88,29 @@ services/
   workouts/               # Service 1: sessions -> exercises -> sets
     app.py                #   entry point: python app.py
     requirements.txt      #   its own pinned dependencies
-    workouts/             #   create_app, config, db, service, repository, routes, schema.sql
+    migrations/           #   001_init.sql, ... applied in order on startup
+    Dockerfile            #   python:3.13.5-slim, non-root, gunicorn with 1 worker
+    workouts/             #   create_app, config, db, migrate, service, repository, routes
     tests/
   records/                # Service 2: PRs, Epley 1RM progress, goals
     app.py
     requirements.txt
     records/              #   same layout, plus workouts_client.py (the HTTP call to workouts)
+    migrations/
     tests/                #   workouts is replaced by a fake, so no second process is needed
+db/init.sql             # creates both databases and logins (local)
+docker-compose.yml
 ```
 
 ## Tests
 
-Each service is tested from its own folder:
+Tests run against the compose SQL Server in a throwaway `workouts_test` / `records_test` database
+(set `TEST_SQLSERVER_URL` to use another server). Start it first, then test each service from its folder:
 
 ```bash
+docker compose up -d sqlserver
 cd services/workouts && pytest --cov=workouts --cov-report=term-missing
 cd services/records && pytest --cov=records --cov-report=term-missing
 ```
 
-Result on 2026-11-16: workouts **46 passed, 100%**; records **30 passed, 100%**.
+Result on 2026-11-17: workouts **65 passed, 100%**; records **48 passed, 100%**.

@@ -1,0 +1,7 @@
+# Keep the build context small and free of local files.
+tests/
+**/__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+.env

@@ -7,6 +7,7 @@ from datetime import date
 MAX_NAME_LENGTH = 60
 MAX_REPS = 100
 MAX_WEIGHT_KG = 500
+MAX_NOTES_LENGTH = 1000  # notes is NVARCHAR(1000)
 
 
 class ValidationError(ValueError):
@@ -79,6 +80,8 @@ def validate_workout(data, today=None):
 
     performed_on = parse_workout_date(data.get("date"), today)
     notes = str(data.get("notes") or "").strip()
+    if len(notes) > MAX_NOTES_LENGTH:
+        raise ValidationError(f"notes must be at most {MAX_NOTES_LENGTH} characters")
 
     exercises = data.get("exercises")
     if not isinstance(exercises, list) or not exercises:
