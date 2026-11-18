@@ -8,4 +8,6 @@ def load_config():
         "DATABASE_URL": os.environ.get("DATABASE_URL"),
         # The commit this build came from, shown by /health. The CD pipeline sets it.
         "GIT_SHA": os.environ.get("GIT_SHA", "dev"),
+        # The only origin whose JavaScript may call this service (CORS). No trailing slash.
+        "UI_ORIGIN": os.environ.get("UI_ORIGIN", "http://localhost:8080").rstrip("/"),
     }

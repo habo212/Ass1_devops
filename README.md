@@ -12,8 +12,12 @@ docker compose up --build
 ```
 
 This starts SQL Server, runs `db/init.sql` once (databases and logins), then builds and starts both
-services: workouts on http://localhost:8001 and records on http://localhost:8002. Data is kept in the
-`sqlserver-data` volume between runs. The static UI comes in a later step.
+services: workouts on http://localhost:8001 and records on http://localhost:8002. Open the UI at
+**http://localhost:8080**: a stock `nginx` container serving the static files in `ui/`, which call
+both services from the browser. Data is kept in the `sqlserver-data` volume between runs.
+
+The services' URLs used by the UI are in `ui/config.js` (local defaults); the deploy pipeline
+replaces that file with the Azure URLs.
 
 ### Run a single service without Docker
 
@@ -46,6 +50,13 @@ The passwords above are local-only defaults from `docker-compose.yml` (SQL Serve
 | both | `DATABASE_URL` | none (secret) | `mssql://user:password@host:1433/database` of the service's own database |
 | records | `WORKOUTS_URL` | `http://workouts:8000` | Base URL of the workouts service |
 | records | `WORKOUTS_TIMEOUT_S` | `2` | Seconds to wait for workouts before answering 503 |
+| both | `UI_ORIGIN` | `http://localhost:8080` | The only origin allowed to call the service from a browser (CORS) |
+| both | `GIT_SHA` | `dev` | Commit the running build came from, shown by `/health`; set by the pipeline |
+
+## Logs
+
+Each service logs to stdout, one line per request with method, path, status and duration,
+e.g. `INFO requests: GET /api/workouts 200 12.3ms`. See them with `docker compose logs -f workouts`.
 
 ## Database and migrations
 
@@ -63,6 +74,7 @@ The passwords above are local-only defaults from `docker-compose.yml` (SQL Serve
 
 | Method | Path | What it does |
 |---|---|---|
+| `GET` | `/health` | `200 {"status": "ok", "db": "ok", "version": "<git sha>"}` if the service can read and write its own database, else `503` (both) |
 | `POST` | `/api/workouts` | Log a workout (JSON: `date`, `notes`, `exercises[{name, sets[{reps, weight_kg}]}]`) |
 | `GET` | `/api/workouts` | List workouts, newest first |
 | `GET` / `PUT` / `DELETE` | `/api/workouts/<id>` | Get, replace or delete one workout |

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gym Log</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="#/">🏋️ Gym Log</a>
+    <nav>
+      <a href="#/">Log a workout</a>
+      <a href="#/history">History</a>
+      <a href="#/records">Records</a>
+    </nav>
+  </header>
+  <!-- app.js draws the current page in here, from the part of the URL after # -->
+  <main id="page"><p class="hint">Loading…</p></main>
+
+  <!-- config.js first: app.js reads the services' URLs from it -->
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

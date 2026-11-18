@@ -5,6 +5,7 @@ import sys
 from flask import Flask
 
 from .config import load_config
+from .cors import allow_ui_origin
 from .db import database_is_usable, init_db
 from .observability import log_requests
 from .routes import bp as workouts_bp
@@ -24,6 +25,7 @@ def create_app(overrides=None):
     init_db(app)
 
     log_requests(app)
+    allow_ui_origin(app)
     app.register_blueprint(workouts_bp)
 
     @app.get("/health")
