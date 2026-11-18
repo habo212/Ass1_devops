@@ -50,4 +50,33 @@ def test_delete_then_gone(client):
 
 
 def test_health(client):
-    assert client.get("/health").json == {"status": "ok"}
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json == {"status": "ok", "db": "ok", "version": "dev"}
+
+
+def test_health_check_leaves_nothing_behind(client):
+    client.get("/health")
+    client.get("/health")  # would fail on the duplicate key if the first write had stayed
+    assert client.get("/health").status_code == 200
+
+
+def test_health_is_503_when_the_database_is_unreachable(app):
+    # Nothing listens on port 1, so the connection is refused straight away.
+    app.config["DATABASE_URL"] = "mssql://u:p@127.0.0.1:1/nothing"
+    response = app.test_client().get("/health")
+    assert response.status_code == 503
+    assert response.json["db"] == "error"
+
+
+def test_health_shows_the_git_sha(app):
+    app.config["GIT_SHA"] = "abc1234"
+    assert app.test_client().get("/health").json["version"] == "abc1234"
+
+
+def test_every_request_is_logged(client, caplog):
+    caplog.set_level("INFO", logger="requests")
+    client.get("/no-such-page")
+    line = caplog.records[-1].getMessage()
+    assert line.startswith("GET /no-such-page 404 ")
+    assert line.endswith("ms")
