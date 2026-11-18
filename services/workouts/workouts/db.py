@@ -79,6 +79,30 @@ def query_one(sql, params=()):
     return cur.fetchone()
 
 
+def database_is_usable(url):
+    """True if this service's login can read and write its own database right now.
+
+    Used by /health. Only one try, no retries: /health must answer quickly, and the
+    caller (the CD pipeline, Azure) asks again by itself.
+    """
+    try:
+        conn = connect(url, attempts=1)
+    except pymssql.Error as e:
+        log.warning("health: can't connect to the database: %s", e)
+        return False
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) AS n FROM schema_migrations")  # read
+        cur.execute("INSERT INTO schema_migrations (version) VALUES ('health-check')")  # write
+        conn.rollback()  # undo the write, so the check leaves nothing behind
+        return True
+    except pymssql.Error as e:
+        log.warning("health: can't read and write the database: %s", e)
+        return False
+    finally:
+        conn.close()
+
+
 def init_db(app):
     """Bring the schema up to date on startup by applying any new migrations."""
     conn = connect(app.config["DATABASE_URL"])
