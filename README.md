@@ -126,3 +126,15 @@ cd services/records && pytest --cov=records --cov-report=term-missing
 ```
 
 Result on 2026-11-17: workouts **65 passed, 100%**; records **48 passed, 100%**.
+
+### Cross-seam integration test
+
+`tests/integration/` runs against the real running stack, with nothing faked: it logs a workout
+through the workouts API and checks that records computes the PRs from it over HTTP, and that
+deleting the workout makes records forget it too. CI runs it on every push after the unit tests.
+
+```bash
+docker compose up -d --build
+pip install -r tests/integration/requirements.txt
+pytest tests/integration -v
+```

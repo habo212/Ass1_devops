@@ -39,6 +39,21 @@ jobs:
       - name: Tests with coverage gate
         run: pytest --cov=${{ matrix.service }} --cov-report=term-missing --cov-fail-under=70
 
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: docker compose up -d --build
+      - run: pip install -r tests/integration/requirements.txt
+      - run: pytest tests/integration -v
+      - name: Service logs if something failed
+        if: failure()
+        run: docker compose logs workouts records
+
   build:
     runs-on: ubuntu-latest
     needs: test
