@@ -1,0 +1,7 @@
+# Lint rules for both services and the integration test (run: ruff check .)
+line-length = 120
+extend-exclude = ["venv"]
+
+[lint]
+# E/W: pycodestyle errors and warnings, F: pyflakes (unused imports, undefined names...)
+select = ["E", "W", "F"]

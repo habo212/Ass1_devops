@@ -1,0 +1,157 @@
+openapi: 3.0.3
+info:
+  title: Gym Log - records service
+  version: "2.0"
+  description: >
+    Personal records, estimated 1RM progress and goals per exercise. Owns the goals database;
+    the sets come from the workouts service over HTTP (GET /api/workouts/exercises/{name}/sets,
+    defined in services/workouts/openapi.yaml).
+servers:
+  - url: http://localhost:8002
+    description: docker compose
+  - url: https://hrahal-ieu2024-records.thankfulhill-5d393d7d.germanywestcentral.azurecontainerapps.io
+    description: Azure Container Apps
+paths:
+  /health:
+    get:
+      summary: Health of this service and its own database (not of workouts)
+      responses:
+        "200":
+          description: The service can read and write its database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The database can't be read or written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /api/records/{name}:
+    parameters:
+      - $ref: "#/components/parameters/Name"
+    get:
+      summary: PRs, progress and goal for one exercise (crosses the seam to workouts)
+      responses:
+        "200":
+          description: The records view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Summary" }
+        "404":
+          description: No sets logged for this exercise, or an invalid name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: >
+            The workouts service didn't answer within WORKOUTS_TIMEOUT_S. Designed failure:
+            a clear error plus the part records owns (the goal).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, exercise, goal]
+                properties:
+                  error: { type: string }
+                  exercise: { type: string }
+                  goal:
+                    nullable: true
+                    allOf: [{ $ref: "#/components/schemas/Goal" }]
+  /api/records/{name}/goal:
+    parameters:
+      - $ref: "#/components/parameters/Name"
+    put:
+      summary: Set or replace the goal weight for one exercise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_kg]
+              properties:
+                target_kg: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 500 }
+      responses:
+        "200":
+          description: The saved goal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "400":
+          description: Invalid name or target
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      summary: Remove the goal for one exercise
+      responses:
+        "204": { description: Deleted }
+        "404":
+          description: No goal for this exercise
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  parameters:
+    Name:
+      name: name
+      in: path
+      required: true
+      description: Exercise name; cleaned the same way as workouts does ("bench  PRESS" = "Bench Press")
+      schema: { type: string, maxLength: 60 }
+  schemas:
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: 'Git SHA of the deployed commit, "dev" locally' }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Goal:
+      type: object
+      required: [exercise_name, target_kg, set_on]
+      properties:
+        exercise_name: { type: string }
+        target_kg: { type: number }
+        set_on: { type: string, format: date }
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Best estimated 1RM as a percentage of the target (only in the records view)
+    PersonalRecord:
+      type: object
+      required: [set_id, performed_on, reps, weight_kg]
+      properties:
+        set_id: { type: integer }
+        performed_on: { type: string, format: date }
+        reps: { type: integer }
+        weight_kg: { type: number }
+        estimated_1rm: { type: number, description: "Epley: weight x (1 + reps / 30)" }
+    Summary:
+      type: object
+      required: [exercise, personal_records, progress, goal]
+      properties:
+        exercise: { type: string }
+        personal_records:
+          type: object
+          required: [heaviest, best_1rm]
+          properties:
+            heaviest: { $ref: "#/components/schemas/PersonalRecord" }
+            best_1rm: { $ref: "#/components/schemas/PersonalRecord" }
+        progress:
+          type: array
+          items:
+            type: object
+            required: [date, best_1rm]
+            properties:
+              date: { type: string, format: date }
+              best_1rm: { type: number }
+        goal:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/Goal" }]

@@ -5,6 +5,28 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.14.5
+      - run: ruff check .   # rules in ruff.toml
+
+  # The machine-readable system description must stay valid (brief §8a).
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install openapi-spec-validator==0.7.2 check-jsonschema==0.35.0
+      - name: OpenAPI documents against the OpenAPI specification
+        run: openapi-spec-validator services/workouts/openapi.yaml services/records/openapi.yaml
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -78,7 +100,7 @@ jobs:
   # CD: only on main, only after unit tests, the integration test and both image builds passed.
   deploy:
     runs-on: ubuntu-latest
-    needs: [integration, build]
+    needs: [lint, validate, integration, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -95,13 +117,30 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy both services with the new image
+      # All runtime configuration is set here, so nothing is changed by hand in the portal.
+      # The connection strings are GitHub secrets, passed to Azure as Container App secrets
+      # and referenced with secretref:, never as plain environment variables.
+      - name: Deploy both services with the new image and their configuration
+        env:
+          WORKOUTS_DATABASE_URL: ${{ secrets.WORKOUTS_DATABASE_URL }}
+          RECORDS_DATABASE_URL: ${{ secrets.RECORDS_DATABASE_URL }}
         run: |
-          for svc in workouts records; do
+          ui_host=$(az staticwebapp show -g "$RG" -n "$PREFIX-ui" --query defaultHostname -o tsv 2>/dev/null || true)
+          UI_ORIGIN=${ui_host:+https://$ui_host}
+          WORKOUTS_URL=https://$(az containerapp show -g "$RG" -n "$PREFIX-workouts" --query properties.configuration.ingress.fqdn -o tsv)
+
+          deploy() {  # deploy <service> <database url> <extra env vars...>
+            local svc=$1 db_url=$2; shift 2
+            if [ -n "$db_url" ]; then
+              az containerapp secret set -g "$RG" -n "$PREFIX-$svc" --secrets "db-url=$db_url" -o none
+            fi
             az containerapp update -g "$RG" -n "$PREFIX-$svc" \
               --image "ghcr.io/habo212/gymlog-$svc:$SHA" \
-              --set-env-vars GIT_SHA="$SHA" -o none
-          done
+              --min-replicas 0 --max-replicas 1 \
+              --set-env-vars GIT_SHA="$SHA" DATABASE_URL=secretref:db-url UI_ORIGIN="$UI_ORIGIN" "$@" -o none
+          }
+          deploy workouts "$WORKOUTS_DATABASE_URL"
+          deploy records "$RECORDS_DATABASE_URL" WORKOUTS_URL="$WORKOUTS_URL" WORKOUTS_TIMEOUT_S=5
 
       - name: Post-deploy health check (scale from zero and a paused database can take a minute)
         run: |
