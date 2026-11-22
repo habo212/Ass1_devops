@@ -1,0 +1,219 @@
+openapi: 3.0.3
+info:
+  title: Gym Log - workouts service
+  version: "2.0"
+  description: >
+    Logs workouts (date, notes) with their exercises and sets. Owns the workouts database.
+    `GET /api/workouts/exercises/{name}/sets` is the endpoint the records service calls
+    across the seam (ADR-6).
+servers:
+  - url: http://localhost:8001
+    description: docker compose
+  - url: https://hrahal-ieu2024-workouts.thankfulhill-5d393d7d.germanywestcentral.azurecontainerapps.io
+    description: Azure Container Apps
+paths:
+  /health:
+    get:
+      summary: Health of this service and its own database (read and write)
+      responses:
+        "200":
+          description: The service can read and write its database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The database can't be read or written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /api/workouts:
+    get:
+      summary: List all workouts, newest first, without their exercises
+      responses:
+        "200":
+          description: The workouts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workouts]
+                properties:
+                  workouts:
+                    type: array
+                    items: { $ref: "#/components/schemas/WorkoutSummary" }
+    post:
+      summary: Log a workout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkoutInput" }
+      responses:
+        "201":
+          description: The saved workout
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workout" }
+        "400": { $ref: "#/components/responses/Invalid" }
+  /api/workouts/{workout_id}:
+    parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: One workout with its exercises and sets
+      responses:
+        "200":
+          description: The workout
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workout" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      summary: Replace a workout's date, notes and all its exercises
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkoutInput" }
+      responses:
+        "200":
+          description: The updated workout
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workout" }
+        "400": { $ref: "#/components/responses/Invalid" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      summary: Delete a workout with its exercises and sets
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/workouts/exercises:
+    get:
+      summary: Every exercise name that has been logged, A to Z
+      responses:
+        "200":
+          description: The names
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exercises]
+                properties:
+                  exercises:
+                    type: array
+                    items: { type: string }
+  /api/workouts/exercises/{name}/sets:
+    get:
+      summary: Every set ever done for one exercise, oldest first (called by records)
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Exercise name; cleaned the same way as when logging ("bench  PRESS" = "Bench Press")
+          schema: { type: string, maxLength: 60 }
+      responses:
+        "200":
+          description: The cleaned name and its sets (empty if nobody logged it)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExerciseSets" }
+        "400": { $ref: "#/components/responses/Invalid" }
+components:
+  responses:
+    Invalid:
+      description: The input failed validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No workout with this id
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: 'Git SHA of the deployed commit, "dev" locally' }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    SetInput:
+      type: object
+      required: [reps, weight_kg]
+      properties:
+        reps: { type: integer, minimum: 1, maximum: 100 }
+        weight_kg: { type: number, minimum: 0, maximum: 500 }
+    ExerciseInput:
+      type: object
+      required: [name, sets]
+      properties:
+        name: { type: string, maxLength: 60 }
+        sets:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/SetInput" }
+    WorkoutInput:
+      type: object
+      required: [date, exercises]
+      properties:
+        date: { type: string, format: date, description: Not in the future }
+        notes: { type: string, maxLength: 1000, default: "" }
+        exercises:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/ExerciseInput" }
+    WorkoutSummary:
+      type: object
+      required: [id, performed_on, notes]
+      properties:
+        id: { type: integer }
+        performed_on: { type: string, format: date }
+        notes: { type: string }
+    Workout:
+      allOf:
+        - $ref: "#/components/schemas/WorkoutSummary"
+        - type: object
+          required: [exercises]
+          properties:
+            exercises:
+              type: array
+              items:
+                type: object
+                required: [id, name, sets]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  sets:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, set_number, reps, weight_kg]
+                      properties:
+                        id: { type: integer }
+                        set_number: { type: integer, description: "1, 2, 3... within the exercise (migration 002)" }
+                        reps: { type: integer }
+                        weight_kg: { type: number }
+    ExerciseSets:
+      type: object
+      required: [exercise, sets]
+      properties:
+        exercise: { type: string }
+        sets:
+          type: array
+          items:
+            type: object
+            required: [set_id, performed_on, reps, weight_kg]
+            properties:
+              set_id: { type: integer }
+              performed_on: { type: string, format: date }
+              reps: { type: integer }
+              weight_kg: { type: number }
