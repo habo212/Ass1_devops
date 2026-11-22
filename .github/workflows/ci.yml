@@ -39,12 +39,110 @@ jobs:
       - name: Tests with coverage gate
         run: pytest --cov=${{ matrix.service }} --cov-report=term-missing --cov-fail-under=70
 
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: docker compose up -d --build
+      - run: pip install -r tests/integration/requirements.txt
+      - run: pytest tests/integration -v
+      - name: Service logs if something failed
+        if: failure()
+        run: docker compose logs workouts records
+
+  # Every run builds the images; only a push to main also publishes them, tagged with the commit SHA.
   build:
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         service: [workouts, records]
+    env:
+      IMAGE: ghcr.io/habo212/gymlog-${{ matrix.service }}:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t ${{ matrix.service }}:ci services/${{ matrix.service }}
+      - run: docker build --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -t "$IMAGE" services/${{ matrix.service }}
+      - name: Push to GHCR (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE"
+
+  # CD: only on main, only after unit tests, the integration test and both image builds passed.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [integration, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write   # lets Azure trust this run through OIDC: no password stored anywhere
+    env:
+      RG: rg-sdd-3a
+      PREFIX: hrahal-ieu2024
+      SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy both services with the new image
+        run: |
+          for svc in workouts records; do
+            az containerapp update -g "$RG" -n "$PREFIX-$svc" \
+              --image "ghcr.io/habo212/gymlog-$svc:$SHA" \
+              --set-env-vars GIT_SHA="$SHA" -o none
+          done
+
+      - name: Post-deploy health check (scale from zero and a paused database can take a minute)
+        run: |
+          fqdn() { az containerapp show -g "$RG" -n "$PREFIX-$1" --query properties.configuration.ingress.fqdn -o tsv; }
+          echo "WORKOUTS_URL=https://$(fqdn workouts)" >> "$GITHUB_ENV"
+          echo "RECORDS_URL=https://$(fqdn records)" >> "$GITHUB_ENV"
+          for url in "https://$(fqdn workouts)" "https://$(fqdn records)"; do
+            for i in $(seq 1 30); do
+              body=$(curl -sS --max-time 30 "$url/health" || true)
+              echo "$url/health -> $body"
+              if echo "$body" | grep -q "\"version\":\"$SHA\"" && echo "$body" | grep -q '"status":"ok"'; then
+                continue 2
+              fi
+              sleep 10
+            done
+            echo "::error::$url never reported healthy on $SHA"
+            exit 1
+          done
+
+      - name: Point the UI at the deployed services
+        run: |
+          cat > ui/config.js <<EOF
+          // Written by the CD pipeline for commit $SHA.
+          window.GYMLOG_CONFIG = {
+            workoutsUrl: "$WORKOUTS_URL",
+            recordsUrl: "$RECORDS_URL",
+          };
+          EOF
+          cat ui/config.js
+          if token=$(az staticwebapp secrets list -g "$RG" -n "$PREFIX-ui" --query properties.apiKey -o tsv 2>/dev/null) && [ -n "$token" ]; then
+            echo "::add-mask::$token"
+            echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No Static Web App $PREFIX-ui yet (region policy), so the UI was not deployed"
+          fi
+
+      - name: Deploy the static UI
+        if: env.SWA_TOKEN != ''
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
+          action: upload
+          app_location: ui
+          skip_app_build: true

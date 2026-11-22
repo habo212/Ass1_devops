@@ -70,6 +70,26 @@ e.g. `INFO requests: GET /api/workouts 200 12.3ms`. See them with `docker compos
 - Connecting retries with backoff (1, 2, 4, 8, then 10 s, about 65 s in total) so a paused
   Azure SQL database has time to resume.
 
+## Deployment (Azure)
+
+Everything on Azure is created once by `infra/azure-setup.sh` (re-runnable; needs `az`, `gh` and
+Docker, logged in to the Azure for Students subscription). It creates, in `rg-sdd-3a`
+(Germany West Central):
+
+| Resource | What it is |
+|---|---|
+| `hrahal-ieu2024-workouts`, `hrahal-ieu2024-records` | Container Apps, Consumption plan, 0–1 replicas |
+| `hrahal-ieu2024-sql` with `hrahal-ieu2024-workouts-db`, `hrahal-ieu2024-records-db` | Azure SQL, free serverless offer, one database and one contained user per service |
+| `hrahal-ieu2024-ui` | Static Web App serving `ui/` |
+| `hrahal-ieu2024-github` | Managed identity the pipeline signs in as (GitHub OIDC, `main` only) |
+
+After that, every push to `main` that passes CI is deployed by the `deploy` job in
+`.github/workflows/ci.yml`: images are pushed to GHCR as `ghcr.io/habo212/gymlog-<service>:<sha>`,
+both Container Apps are updated, `ui/config.js` is rewritten with the live service URLs and the UI is
+uploaded, and the job fails unless both `/health` endpoints report that SHA. Database passwords live
+only in Container App secrets (and `~/.config/gymlog-azure` on the machine that ran the setup).
+See ADR-8.
+
 ## API
 
 | Method | Path | What it does |
@@ -126,3 +146,15 @@ cd services/records && pytest --cov=records --cov-report=term-missing
 ```
 
 Result on 2026-11-17: workouts **65 passed, 100%**; records **48 passed, 100%**.
+
+### Cross-seam integration test
+
+`tests/integration/` runs against the real running stack, with nothing faked: it logs a workout
+through the workouts API and checks that records computes the PRs from it over HTTP, and that
+deleting the workout makes records forget it too. CI runs it on every push after the unit tests.
+
+```bash
+docker compose up -d --build
+pip install -r tests/integration/requirements.txt
+pytest tests/integration -v
+```
