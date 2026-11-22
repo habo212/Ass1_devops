@@ -114,11 +114,14 @@ say "Pipeline identity $IDENTITY (GitHub OIDC, main branch only, no stored secre
 if ! az identity show -g "$RG" -n "$IDENTITY" -o none 2>/dev/null; then
   az identity create -g "$RG" -n "$IDENTITY" -l "$LOCATION" -o none
 fi
-if ! az identity federated-credential show -g "$RG" --identity-name "$IDENTITY" -n github-main -o none 2>/dev/null; then
-  az identity federated-credential create -g "$RG" --identity-name "$IDENTITY" -n github-main \
-    --issuer https://token.actions.githubusercontent.com \
-    --subject "repo:$REPO:ref:refs/heads/main" --audiences api://AzureADTokenExchange -o none
-fi
+# GitHub's OIDC subject now carries the owner and repo IDs as well as their names
+# (repo:owner@id/name@id:ref:...), so build it from the GitHub API instead of the name alone.
+SUBJECT=$(gh api "repos/$REPO" --jq '"repo:\(.owner.login)@\(.owner.id)/\(.name)@\(.id):ref:refs/heads/main"')
+verb=create
+az identity federated-credential show -g "$RG" --identity-name "$IDENTITY" -n github-main -o none 2>/dev/null && verb=update
+az identity federated-credential "$verb" -g "$RG" --identity-name "$IDENTITY" -n github-main \
+  --issuer https://token.actions.githubusercontent.com \
+  --subject "$SUBJECT" --audiences api://AzureADTokenExchange -o none
 PRINCIPAL_ID=$(az identity show -g "$RG" -n "$IDENTITY" --query principalId -o tsv)
 az role assignment create --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
   --role Contributor --scope "$(az group show -n "$RG" --query id -o tsv)" -o none
