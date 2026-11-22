@@ -95,13 +95,30 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy both services with the new image
+      # All runtime configuration is set here, so nothing is changed by hand in the portal.
+      # The connection strings are GitHub secrets, passed to Azure as Container App secrets
+      # and referenced with secretref:, never as plain environment variables.
+      - name: Deploy both services with the new image and their configuration
+        env:
+          WORKOUTS_DATABASE_URL: ${{ secrets.WORKOUTS_DATABASE_URL }}
+          RECORDS_DATABASE_URL: ${{ secrets.RECORDS_DATABASE_URL }}
         run: |
-          for svc in workouts records; do
+          ui_host=$(az staticwebapp show -g "$RG" -n "$PREFIX-ui" --query defaultHostname -o tsv 2>/dev/null || true)
+          UI_ORIGIN=${ui_host:+https://$ui_host}
+          WORKOUTS_URL=https://$(az containerapp show -g "$RG" -n "$PREFIX-workouts" --query properties.configuration.ingress.fqdn -o tsv)
+
+          deploy() {  # deploy <service> <database url> <extra env vars...>
+            local svc=$1 db_url=$2; shift 2
+            if [ -n "$db_url" ]; then
+              az containerapp secret set -g "$RG" -n "$PREFIX-$svc" --secrets "db-url=$db_url" -o none
+            fi
             az containerapp update -g "$RG" -n "$PREFIX-$svc" \
               --image "ghcr.io/habo212/gymlog-$svc:$SHA" \
-              --set-env-vars GIT_SHA="$SHA" -o none
-          done
+              --min-replicas 0 --max-replicas 1 \
+              --set-env-vars GIT_SHA="$SHA" DATABASE_URL=secretref:db-url UI_ORIGIN="$UI_ORIGIN" "$@" -o none
+          }
+          deploy workouts "$WORKOUTS_DATABASE_URL"
+          deploy records "$RECORDS_DATABASE_URL" WORKOUTS_URL="$WORKOUTS_URL" WORKOUTS_TIMEOUT_S=5
 
       - name: Post-deploy health check (scale from zero and a paused database can take a minute)
         run: |

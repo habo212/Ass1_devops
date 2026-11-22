@@ -62,9 +62,11 @@ for svc in workouts records; do
   say "Database $db (free serverless offer, pauses when idle)"
   if ! az sql db show -g "$RG" -s "$SQL_SERVER" -n "$db" -o none 2>/dev/null; then
     az sql db create -g "$RG" -s "$SQL_SERVER" -n "$db" \
-      --edition GeneralPurpose --compute-model Serverless --family Gen5 --capacity 2 \
-      --use-free-limit --free-limit-exhaustion-behavior AutoPause --auto-pause-delay 60 -o none
+      --edition GeneralPurpose --compute-model Serverless --family Gen5 --capacity 1 --min-capacity 0.5 \
+      --backup-storage-redundancy Local \
+      --use-free-limit --free-limit-exhaustion-behavior AutoPause -o none
   fi
+  # The free offer fixes auto-pause at 60 min and max size at 32 GB (the shortest/only values it allows).
 
   say "Login ${svc}_user: db_owner of $db only"
   docker run --rm --platform linux/amd64 --entrypoint /opt/mssql-tools18/bin/sqlcmd \
@@ -126,10 +128,18 @@ PRINCIPAL_ID=$(az identity show -g "$RG" -n "$IDENTITY" --query principalId -o t
 az role assignment create --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
   --role Contributor --scope "$(az group show -n "$RG" --query id -o tsv)" -o none
 
-say "GitHub secrets for the CD job (IDs only, nothing that signs in by itself)"
+say "GitHub secrets for the CD job"
+# The connection strings (with each service user's password) go straight from this laptop into
+# GitHub secrets; the pipeline passes them to the Container Apps as secrets on every deploy.
+gh secret set WORKOUTS_DATABASE_URL -R "$REPO" -b "$(db_url workouts)"
+gh secret set RECORDS_DATABASE_URL -R "$REPO" -b "$(db_url records)"
+# IDs only, nothing that signs in by itself: Azure trusts the OIDC token, not these values.
 gh secret set AZURE_CLIENT_ID -R "$REPO" -b "$(az identity show -g "$RG" -n "$IDENTITY" --query clientId -o tsv)"
 gh secret set AZURE_TENANT_ID -R "$REPO" -b "$(az account show --query tenantId -o tsv)"
 gh secret set AZURE_SUBSCRIPTION_ID -R "$REPO" -b "$(az account show --query id -o tsv)"
+
+say "Firewall: remove this laptop's IP now that setup is done"
+az sql server firewall-rule delete -g "$RG" -s "$SQL_SERVER" -n setup-laptop -o none
 
 say "Done"
 echo "UI:       $UI_ORIGIN"
