@@ -15,10 +15,10 @@ def _insert_exercises(cur, workout_id, exercises):
             (workout_id, exercise["name"]),
         )
         exercise_id = cur.fetchone()["id"]
-        for s in exercise["sets"]:
+        for number, s in enumerate(exercise["sets"], start=1):
             cur.execute(
-                "INSERT INTO sets (exercise_id, reps, weight_kg) VALUES (%s, %s, %s)",
-                (exercise_id, s["reps"], s["weight_kg"]),
+                "INSERT INTO sets (exercise_id, set_number, reps, weight_kg) VALUES (%s, %s, %s, %s)",
+                (exercise_id, number, s["reps"], s["weight_kg"]),
             )
 
 
@@ -65,7 +65,8 @@ def get_workout(workout_id):
     )
     for exercise in workout["exercises"]:
         exercise["sets"] = query(
-            "SELECT id, reps, weight_kg FROM sets WHERE exercise_id = %s ORDER BY id",
+            "SELECT id, set_number, reps, weight_kg FROM sets WHERE exercise_id = %s "
+            "ORDER BY set_number, id",
             (exercise["id"],),
         )
     return workout
