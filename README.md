@@ -74,7 +74,7 @@ e.g. `INFO requests: GET /api/workouts 200 12.3ms`. See them with `docker compos
 
 | | URL |
 |---|---|
-| UI (Static Web App `hrahal-ieu2024-ui`) | not deployed yet: Static Web Apps are blocked by the Azure for Students region policy (ADR-8) |
+| UI (Storage static website `hrahalieu2024ui`) | https://hrahalieu2024ui.z1.web.core.windows.net |
 | workouts | https://hrahal-ieu2024-workouts.thankfulhill-5d393d7d.germanywestcentral.azurecontainerapps.io/health |
 | records | https://hrahal-ieu2024-records.thankfulhill-5d393d7d.germanywestcentral.azurecontainerapps.io/health |
 
@@ -95,8 +95,8 @@ Every push to `main` (always through a pull request) runs `.github/workflows/ci.
    (`GIT_SHA`, `UI_ORIGIN`, `WORKOUTS_URL`, `WORKOUTS_TIMEOUT_S`, and `DATABASE_URL` read from the
    Container App secret `db-url`, which is set from the GitHub secret);
 4. calls `GET /health` on both until each reports the new SHA (30 tries, 10 s apart), else fails;
-5. writes `ui/config.js` with the services' URLs and uploads `ui/` to the Static Web App (skipped
-   with a warning while the Static Web App doesn't exist).
+5. writes `ui/config.js` with the services' URLs and uploads `ui/` to the static website (the
+   `$web` container of the storage account `hrahalieu2024ui`).
 
 ### Initial setup (once), step by step
 
@@ -116,7 +116,7 @@ updates what already exists.
    ```
    It registers the resource providers, then creates in `rg-sdd-3a` (Germany West Central, an
    allowed region): the SQL server and both databases, a contained user per database
-   (`db/azure-user.sql`, run with `sqlcmd` from the SQL Server image), the Static Web App, the
+   (`db/azure-user.sql`, run with `sqlcmd` from the SQL Server image), the storage account for the UI, the
    Container Apps environment and both Container Apps (with a placeholder image), and the managed
    identity with its federated credential and the Contributor role on the resource group. It
    generates the database passwords into `~/.config/gymlog-azure/` (never into the repo), saves the
@@ -130,7 +130,7 @@ updates what already exists.
 |---|---|
 | `hrahal-ieu2024-workouts`, `hrahal-ieu2024-records` | Container Apps in `hrahal-ieu2024-env`, Consumption plan, 0–1 replicas |
 | `hrahal-ieu2024-sql` with `hrahal-ieu2024-workouts-db`, `hrahal-ieu2024-records-db` | Azure SQL, General Purpose serverless Gen5, 0.5–1 vCore, free offer, one contained user per database |
-| `hrahal-ieu2024-ui` | Static Web App for `ui/` (blocked by region policy, see above) |
+| `hrahalieu2024ui` | Storage account whose static website serves `ui/`. A Static Web App would be the usual choice, but none of its regions is allowed by Azure for Students (ADR-8) |
 | `hrahal-ieu2024-github` | Managed identity the pipeline signs in as (GitHub OIDC, `main` only) |
 
 See ADR-8 for the choices and costs, and `docs/diagrams.md` for the deployment diagram.

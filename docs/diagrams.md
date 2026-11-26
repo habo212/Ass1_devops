@@ -137,7 +137,7 @@ flowchart LR
             dbw[("hrahal-ieu2024-workouts-db<br/>serverless, 0.5-1 vCore")]
             dbr[("hrahal-ieu2024-records-db<br/>serverless, 0.5-1 vCore")]
         end
-        swa["Static Web App hrahal-ieu2024-ui<br/>(blocked by the subscription's region policy, ADR-8)"]
+        swa["Storage static website hrahalieu2024ui<br/>ui/ files + config.js (ADR-8)"]
         mi["Managed identity hrahal-ieu2024-github<br/>Contributor on rg-sdd-3a"]
     end
 

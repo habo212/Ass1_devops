@@ -11,13 +11,13 @@ set -euo pipefail
 PREFIX=hrahal-ieu2024
 RG=rg-sdd-3a
 LOCATION=${LOCATION:-germanywestcentral}
-SWA_LOCATION=${SWA_LOCATION:-westeurope}   # Static Web Apps only run in a few regions
 REPO=habo212/Ass1_devops
 SECRETS_DIR=${SECRETS_DIR:-$HOME/.config/gymlog-azure}
 
 SQL_SERVER=$PREFIX-sql
 ENV_NAME=$PREFIX-env
-UI_NAME=$PREFIX-ui
+# Storage account names allow only lowercase letters and digits (3-24), so no dashes.
+UI_STORAGE=hrahalieu2024ui
 IDENTITY=$PREFIX-github
 
 say() { printf '\n== %s\n' "$*"; }
@@ -37,7 +37,7 @@ say "Subscription: $(az account show --query name -o tsv)"
 az extension add --name containerapp --upgrade --only-show-errors -y
 
 say "Resource providers"
-for ns in Microsoft.App Microsoft.OperationalInsights Microsoft.Sql Microsoft.Web Microsoft.ManagedIdentity; do
+for ns in Microsoft.App Microsoft.OperationalInsights Microsoft.Sql Microsoft.Storage Microsoft.ManagedIdentity; do
   az provider register --namespace "$ns" --wait
 done
 
@@ -76,15 +76,18 @@ for svc in workouts records; do
     -l 90 -b -i /db/azure-user.sql   # 90 s login timeout: a paused database takes ~1 min to resume
 done
 
-say "Static Web App $UI_NAME"
-if ! az staticwebapp show -g "$RG" -n "$UI_NAME" -o none 2>/dev/null; then
-  # Azure for Students only allows 5 regions and Static Web Apps run in none of them,
-  # so this can be refused by policy; the rest of the system still gets set up.
-  az staticwebapp create -g "$RG" -n "$UI_NAME" -l "$SWA_LOCATION" --sku Free -o none \
-    || echo "WARNING: Static Web App not created (region policy?), so the UI is not deployed yet"
+say "UI: static website in storage account $UI_STORAGE"
+# Static Web Apps run in none of the 5 regions Azure for Students allows (ADR-8), so the UI is
+# served as a Storage static website from the same region: plain files over HTTPS, no server.
+if ! az storage account show -g "$RG" -n "$UI_STORAGE" -o none 2>/dev/null; then
+  az storage account create -g "$RG" -n "$UI_STORAGE" -l "$LOCATION" --sku Standard_LRS --kind StorageV2 \
+    --min-tls-version TLS1_2 --allow-blob-public-access false -o none
 fi
-UI_HOST=$(az staticwebapp show -g "$RG" -n "$UI_NAME" --query defaultHostname -o tsv 2>/dev/null || true)
-UI_ORIGIN=${UI_HOST:+https://$UI_HOST}   # empty = CORS lets no browser origin in
+# index.html for every path, so a refresh never shows a storage error page.
+az storage blob service-properties update --account-name "$UI_STORAGE" --auth-mode key \
+  --static-website --index-document index.html --404-document index.html -o none
+UI_WEB=$(az storage account show -g "$RG" -n "$UI_STORAGE" --query primaryEndpoints.web -o tsv)
+UI_ORIGIN=${UI_WEB%/}   # e.g. https://hrahalieu2024ui.z1.web.core.windows.net, CORS's only origin
 
 say "Container Apps environment $ENV_NAME"
 if ! az containerapp env show -g "$RG" -n "$ENV_NAME" -o none 2>/dev/null; then

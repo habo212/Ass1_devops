@@ -108,6 +108,7 @@ jobs:
     env:
       RG: rg-sdd-3a
       PREFIX: hrahal-ieu2024
+      UI_STORAGE: hrahalieu2024ui
       SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
@@ -125,8 +126,9 @@ jobs:
           WORKOUTS_DATABASE_URL: ${{ secrets.WORKOUTS_DATABASE_URL }}
           RECORDS_DATABASE_URL: ${{ secrets.RECORDS_DATABASE_URL }}
         run: |
-          ui_host=$(az staticwebapp show -g "$RG" -n "$PREFIX-ui" --query defaultHostname -o tsv 2>/dev/null || true)
-          UI_ORIGIN=${ui_host:+https://$ui_host}
+          ui_web=$(az storage account show -g "$RG" -n "$UI_STORAGE" --query primaryEndpoints.web -o tsv)
+          UI_ORIGIN=${ui_web%/}   # the UI's own address is the only origin CORS lets in
+          echo "UI_ORIGIN=$UI_ORIGIN" >> "$GITHUB_ENV"
           WORKOUTS_URL=https://$(az containerapp show -g "$RG" -n "$PREFIX-workouts" --query properties.configuration.ingress.fqdn -o tsv)
 
           deploy() {  # deploy <service> <database url> <extra env vars...>
@@ -160,7 +162,7 @@ jobs:
             exit 1
           done
 
-      - name: Point the UI at the deployed services
+      - name: Deploy the UI with the deployed services' URLs
         run: |
           cat > ui/config.js <<EOF
           // Written by the CD pipeline for commit $SHA.
@@ -170,18 +172,8 @@ jobs:
           };
           EOF
           cat ui/config.js
-          if token=$(az staticwebapp secrets list -g "$RG" -n "$PREFIX-ui" --query properties.apiKey -o tsv 2>/dev/null) && [ -n "$token" ]; then
-            echo "::add-mask::$token"
-            echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
-          else
-            echo "::warning::No Static Web App $PREFIX-ui yet (region policy), so the UI was not deployed"
-          fi
-
-      - name: Deploy the static UI
-        if: env.SWA_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
-          action: upload
-          app_location: ui
-          skip_app_build: true
+          # Upload ui/ to the static website ($web container). Contributor on the resource group
+          # may read the account key, so the pipeline identity needs no extra role.
+          az storage blob upload-batch --account-name "$UI_STORAGE" --auth-mode key \
+            -s ui -d '$web' --overwrite -o none
+          echo "UI: $UI_ORIGIN"
