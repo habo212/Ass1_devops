@@ -26,6 +26,8 @@ jobs:
       - run: pip install openapi-spec-validator==0.7.2 check-jsonschema==0.35.0
       - name: OpenAPI documents against the OpenAPI specification
         run: openapi-spec-validator services/workouts/openapi.yaml services/records/openapi.yaml
+      - name: system.yaml against the course's system.schema.json
+        run: check-jsonschema --schemafile system.schema.json system.yaml
 
   test:
     runs-on: ubuntu-latest

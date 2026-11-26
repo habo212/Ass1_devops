@@ -1,12 +1,11 @@
 # yaml-language-server: $schema=./system.schema.json
 student: hrahal.ieu2024
 prefix: hrahal-ieu2024
-# The UI is a Storage static website, not a Static Web App: Static Web Apps are refused by the
-# Azure for Students region policy (ADR-8).
+# The UI is a Storage static website in the same region as everything else (ADR-8).
 public_url: https://hrahalieu2024ui.z1.web.core.windows.net
 ui:
   path: ui
-  storage_static_website: hrahalieu2024ui
+  storage_account: hrahalieu2024ui
   calls: [workouts, records]
 azure:
   resource_group: rg-sdd-3a
@@ -20,12 +19,11 @@ services:
     openapi: services/workouts/openapi.yaml
     port_default: 8000
     health: /health
-    database: true
     migrations: services/workouts/migrations
     env:
       PORT: { default: 8000, description: Port the service listens on }
       DATABASE_URL: { secret: true, description: "Connection string of the workouts database (mssql://user:password@host:1433/db)" }
-      GIT_SHA: { default: dev, description: Commit the image was built from, reported by /health; set by CD }
+      GIT_SHA: { default: dev, description: "Commit the image was built from, reported by /health; set by CD" }
       UI_ORIGIN: { default: "http://localhost:8080", description: The only browser origin allowed by CORS }
     calls: []
     azure:
@@ -37,12 +35,11 @@ services:
     openapi: services/records/openapi.yaml
     port_default: 8000
     health: /health
-    database: true
     migrations: services/records/migrations
     env:
       PORT: { default: 8000, description: Port the service listens on }
       DATABASE_URL: { secret: true, description: "Connection string of the records database (mssql://user:password@host:1433/db)" }
-      GIT_SHA: { default: dev, description: Commit the image was built from, reported by /health; set by CD }
+      GIT_SHA: { default: dev, description: "Commit the image was built from, reported by /health; set by CD" }
       UI_ORIGIN: { default: "http://localhost:8080", description: The only browser origin allowed by CORS }
       WORKOUTS_URL: { default: "http://workouts:8000", description: Base URL of the workouts service }
       WORKOUTS_TIMEOUT_S: { default: 2, description: "Timeout in seconds for calls to workouts (5 on Azure, set by CD)" }

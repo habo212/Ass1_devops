@@ -130,7 +130,7 @@ updates what already exists.
 |---|---|
 | `hrahal-ieu2024-workouts`, `hrahal-ieu2024-records` | Container Apps in `hrahal-ieu2024-env`, Consumption plan, 0–1 replicas |
 | `hrahal-ieu2024-sql` with `hrahal-ieu2024-workouts-db`, `hrahal-ieu2024-records-db` | Azure SQL, General Purpose serverless Gen5, 0.5–1 vCore, free offer, one contained user per database |
-| `hrahalieu2024ui` | Storage account whose static website serves `ui/`. A Static Web App would be the usual choice, but none of its regions is allowed by Azure for Students (ADR-8) |
+| `hrahalieu2024ui` | Storage account whose static website serves `ui/` (Static Web Apps run in none of the regions Azure for Students allows, ADR-8) |
 | `hrahal-ieu2024-github` | Managed identity the pipeline signs in as (GitHub OIDC, `main` only) |
 
 See ADR-8 for the choices and costs, and `docs/diagrams.md` for the deployment diagram.
@@ -201,6 +201,7 @@ cd services/records && pytest --cov=records --cov-report=term-missing
 Result on 2026-11-22: workouts **76 passed, 99%**; records **57 passed, 99%** (the 3 uncovered lines in each `db.py` are the database error paths of `/health`). CI fails if either is below 70%.
 
 Lint: `ruff check .` (rules in `ruff.toml`). OpenAPI: `openapi-spec-validator services/*/openapi.yaml`.
+System description: `check-jsonschema --schemafile system.schema.json system.yaml` (the schema is the course's, unchanged).
 
 ### Cross-seam integration test
 
