@@ -1,7 +1,7 @@
 """CORS: let the browser call this service from the UI's origin, and from nowhere else.
 
-The UI is served from another origin (nginx on :8080 locally, the Static Web App on
-Azure), so the browser only lets its JavaScript read our answers if we send
+The UI is served from another origin (nginx on :8080 locally, a Storage static
+website on Azure), so the browser only lets its JavaScript read our answers if we send
 Access-Control-Allow-Origin with exactly that origin.
 """
 from flask import request

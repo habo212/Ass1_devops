@@ -1,12 +1,12 @@
 # yaml-language-server: $schema=./system.schema.json
 student: hrahal.ieu2024
 prefix: hrahal-ieu2024
-# TODO: the Static Web App's URL once hrahal-ieu2024-ui exists (blocked by the subscription's
-# region policy, ADR-8). Until then the system is reached through the two service URLs below.
-public_url: https://hrahal-ieu2024-ui.azurestaticapps.net
+# The UI is a Storage static website, not a Static Web App: Static Web Apps are refused by the
+# Azure for Students region policy (ADR-8).
+public_url: https://hrahalieu2024ui.z1.web.core.windows.net
 ui:
   path: ui
-  static_web_app: hrahal-ieu2024-ui
+  storage_static_website: hrahalieu2024ui
   calls: [workouts, records]
 azure:
   resource_group: rg-sdd-3a
